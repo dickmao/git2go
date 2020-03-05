@@ -213,4 +213,10 @@ int _go_git_indexer_new(git_indexer **out, const char *path, unsigned int mode, 
 	return git_indexer_new(out, path, mode, odb, &indexer_options);
 }
 
+int _go_git_worktree_add(git_worktree **out, git_repository *repo, const char *name, const char *worktree)
+{
+  git_worktree_add_options worktree_add_options = GIT_WORKTREE_ADD_OPTIONS_INIT;
+  return git_worktree_add(out, repo, name, worktree, &worktree_add_options);
+}
+
 /* EOF */
