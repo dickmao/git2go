@@ -3,8 +3,6 @@ package git
 /*
 #include <git2.h>
 
-extern int _go_git_worktree_add(git_worktree **out, git_repository *repo, const char *name, const char *worktree);
-
 */
 import "C"
 import (
@@ -15,6 +13,16 @@ import (
 type Worktree struct {
 	ptr  *C.git_worktree
 	repo *Repository
+}
+
+type WorktreeAddOptions struct {
+	version uint
+	lock    int
+	ref     *Reference
+}
+
+func NewWorktreeAddOptions(version uint, lock int, ref *Reference) (*WorktreeAddOptions, error) {
+	return &WorktreeAddOptions{version, lock, ref}, nil
 }
 
 func newWorktreeFromC(ptr *C.git_worktree, repo *Repository) *Worktree {
@@ -36,7 +44,7 @@ func ExistingWorktree(repo *Repository) (*Worktree, error) {
 	return newWorktreeFromC(ptr, repo), nil
 }
 
-func AddWorktree(repo *Repository, name string, worktree string) (*Worktree, error) {
+func AddWorktree(repo *Repository, name string, destdir string, options *WorktreeAddOptions) (*Worktree, error) {
 	var ptr *C.git_worktree
 
 	runtime.LockOSThread()
@@ -45,12 +53,12 @@ func AddWorktree(repo *Repository, name string, worktree string) (*Worktree, err
 	cname := C.CString(name)
 	defer C.free(unsafe.Pointer(cname))
 
-	cworktree := C.CString(worktree)
-	defer C.free(unsafe.Pointer(cworktree))
+	cdestdir := C.CString(destdir)
+	defer C.free(unsafe.Pointer(cdestdir))
 
-	err := C._go_git_worktree_add(&ptr, repo.ptr, cname, cworktree)
-	if err < 0 {
-		return nil, MakeGitError(err)
+	ecode := C.git_worktree_add(&ptr, repo.ptr, cname, cdestdir, &C.git_worktree_add_options{C.uint(options.version), C.int(options.lock), options.ref.ptr})
+	if ecode < 0 {
+		return nil, MakeGitError(ecode)
 	}
 	return newWorktreeFromC(ptr, repo), nil
 }
