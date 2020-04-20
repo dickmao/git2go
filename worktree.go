@@ -12,7 +12,7 @@ import (
 
 type Worktree struct {
 	ptr  *C.git_worktree
-	repo *Repository
+	Repo *Repository
 }
 
 type WorktreeAddOptions struct {
@@ -31,20 +31,54 @@ func newWorktreeFromC(ptr *C.git_worktree, repo *Repository) *Worktree {
 	return idx
 }
 
-func ExistingWorktree(repo *Repository) (*Worktree, error) {
+func (repo *Repository) ListWorktrees() ([]string, error) {
+	var r C.git_strarray
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	ecode := C.git_worktree_list(&r, repo.ptr)
+	runtime.KeepAlive(repo)
+	if ecode < 0 {
+		return nil, MakeGitError(ecode)
+	}
+	defer C.git_strarray_free(&r)
+	worktrees := makeStringsFromCStrings(r.strings, int(r.count))
+	return worktrees, nil
+}
+
+func (repo *Repository) NewWorktreeFromSubrepository() (*Worktree, error) {
 	var ptr *C.git_worktree
 
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	if err := C.git_worktree_open_from_repository(&ptr, repo.ptr); err < 0 {
-		return nil, MakeGitError(err)
+	ecode := C.git_worktree_open_from_repository(&ptr, repo.ptr)
+	runtime.KeepAlive(repo)
+	if ecode < 0 {
+		return nil, MakeGitError(ecode)
 	}
-
 	return newWorktreeFromC(ptr, repo), nil
 }
 
-func AddWorktree(repo *Repository, name string, destdir string, options *WorktreeAddOptions) (*Worktree, error) {
+func (repo *Repository) LookupWorktree(name string) (*Worktree, error) {
+	var ptr *C.git_worktree
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+
+	ecode := C.git_worktree_lookup(&ptr, repo.ptr, cname)
+	runtime.KeepAlive(repo)
+	if ecode < 0 {
+		return nil, MakeGitError(ecode)
+	}
+	return newWorktreeFromC(ptr, repo), nil
+}
+
+func (repo *Repository) AddWorktree(name string, destdir string, options *WorktreeAddOptions) (*Worktree, error) {
 	var ptr *C.git_worktree
 
 	runtime.LockOSThread()
@@ -57,6 +91,7 @@ func AddWorktree(repo *Repository, name string, destdir string, options *Worktre
 	defer C.free(unsafe.Pointer(cdestdir))
 
 	ecode := C.git_worktree_add(&ptr, repo.ptr, cname, cdestdir, &C.git_worktree_add_options{C.uint(options.version), C.int(options.lock), options.ref.ptr})
+	runtime.KeepAlive(repo)
 	if ecode < 0 {
 		return nil, MakeGitError(ecode)
 	}
