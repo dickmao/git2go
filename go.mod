@@ -1,4 +1,4 @@
-module github.com/dickmao/git2go/v30
+module github.com/dickmao/git2go
 
 go 1.13
 
