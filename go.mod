@@ -1,4 +1,4 @@
-module github.com/dickmao/git2go/v31.3.0.alpha
+module github.com/dickmao/git2go/v31
 
 go 1.13
 
